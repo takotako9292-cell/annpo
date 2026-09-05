@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>避難所運営シミュレーション</title>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --panel-bg: #1e293b;
+            --accent-blue: #38bdf8;
+            --accent-green: #34d399;
+            --accent-orange: #fbbf24;
+            --accent-red: #f87171;
+            --text-main: #f1f5f9;
+            --text-muted: #94a3b8;
+            --border-color: #334155;
+        }
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            margin: 0;
+            padding: 10px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            box-sizing: border-box;
+            overflow: hidden;
+        }
+        .container {
+            width: 100%;
+            max-width: 1100px;
+            height: 96vh;
+            display: grid;
+            grid-template-columns: 320px 1fr;
+            grid-template-rows: 50px 110px 1fr 220px;
+            gap: 10px;
+        }
+        header {
+            grid-column: 1 / -1;
+            grid-row: 1;
+            background: var(--panel-bg);
+            padding: 0 15px;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.3);
+        }
+        header h1 {
+            margin: 0;
+            font-size: 15px;
+            letter-spacing: 0.5px;
+            color: #f8fafc;
+        }
+        .visual-panel {
+            grid-column: 1;
+            grid-row: 2;
+            background: #090d16;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+        }
+        .visual-art {
+            font-size: 30px;
+            margin-bottom: 2px;
+        }
+        .visual-caption {
+            font-size: 10.5px;
+            color: var(--accent-orange);
+            background: rgba(251, 191, 36, 0.1);
+            padding: 2px 8px;
+            border-radius: 4px;
+            border: 1px solid rgba(251, 191, 36, 0.3);
+            font-weight: bold;
+            text-align: center;
+        }
+        .status-panel {
+            grid-column: 1;
+            grid-row: 3 / span 2;
+            background: var(--panel-bg);
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.3);
+            overflow-y: auto;
+        }
+        .chat-panel {
+            grid-column: 2;
+            grid-row: 2 / span 2;
+            background: var(--panel-bg);
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.3);
+        }
+        .metrics-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            background: #090d16;
+            padding: 8px;
+            border-radius: 6px;
+            border: 1px solid var(--border-color);
+        }
+        .metric-row {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        .metric-info {
+            display: flex;
+            justify-content: space-between;
+            font-size: 11px;
+            font-weight: bold;
+        }
+        .metric-name {
+            color: var(--text-muted);
+        }
+        .metric-val {
+            color: #fff;
+        }
+        .bar-container {
+            background: #1e293b;
+            height: 8px;
+            border-radius: 4px;
+            overflow: hidden;
+            border: 1px solid var(--border-color);
+        }
+        .bar-fill {
+            height: 100%;
+            width: 100%;
+            transition: width 0.4s ease, background-color 0.4s ease;
+        }
+        canvas {
+            background: #090d16;
+            border-radius: 6px;
+            border: 1px solid var(--border-color);
+            width: 100%;
+            height: 65px;
+        }
+        .log-area {
+            flex-grow: 1;
+            background: #090d16;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 12px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+        .log-item {
+            padding: 10px 14px;
+            border-radius: 6px;
+            animation: fadeIn 0.3s ease;
+            white-space: pre-wrap;
+        }
+        .log-gm {
+            background: rgba(56, 189, 248, 0.08);
+            border-left: 4px solid var(--accent-blue);
+            color: #e2e8f0;
+        }
+        .log-incident {
+            background: rgba(251, 191, 36, 0.08);
+            border-left: 4px solid var(--accent-orange);
+            color: #fef08a;
+        }
+        .log-player {
+            background: rgba(52, 211, 153, 0.08);
+            border-left: 4px solid var(--accent-green);
+            margin-left: 10px;
+            color: #a7f3d0;
+        }
+        .choices-area {
+            grid-column: 2;
+            grid-row: 4;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 6px;
+            overflow-y: auto;
+            background: #111827;
+            padding: 8px;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            align-content: start;
+        }
+        .choice-btn {
+            background: #1e293b;
+            border: 1px solid var(--border-color);
+            color: #cbd5e1;
+            padding: 9px 11px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 11.5px;
+            text-align: left;
+            transition: all 0.2s;
+            line-height: 1.4;
+        }
+        .choice-btn:hover {
+            background: var(--accent-orange);
+            color: #0f172a;
+            border-color: var(--accent-orange);
+            font-weight: bold;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(4px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>避難所運営シミュレーション</h1>
+        <div id="role-display" style="font-size:12px; color:var(--accent-orange); font-weight:bold;">ターン: 1 / 5</div>
+    </header>
+
+    <div class="visual-panel">
+        <div class="visual-art" id="visualArt">🏫⚡</div>
+        <div class="visual-caption" id="visualCaption">避難所の開設と初期対応</div>
+    </div>
+
+    <div class="status-panel">
+        <div style="font-size:12px; font-weight:bold; border-bottom:1px solid var(--border-color); padding-bottom:4px; color:#f8fafc; display:flex; justify-content:space-between;">
+            <span>運営リソース状況</span>
+            <span style="font-size:9.5px; color:var(--accent-red);">HARD-MODE</span>
+        </div>
+        
+        <div class="metrics-grid">
+            <div class="metric-row">
+                <div class="metric-info">
+                    <span class="metric-name">💧 給水・生活用水</span>
+                    <span class="metric-val" id="text-water">100%</span>
+                </div>
+                <div class="bar-container">
+                    <div id="fill-water" class="bar-fill" style="width: 100%; background: var(--accent-blue);"></div>
+                </div>
+            </div>
+            <div class="metric-row">
+                <div class="metric-info">
+                    <span class="metric-name">📦 非常食・物資備蓄</span>
+                    <span class="metric-val" id="text-food">100%</span>
+                </div>
+                <div class="bar-container">
+                    <div id="fill-food" class="bar-fill" style="width: 100%; background: var(--accent-green);"></div>
+                </div>
+            </div>
+            <div class="metric-row">
+                <div class="metric-info">
+                    <span class="metric-name">⚡ 住民の不安・不満度</span>
+                    <span class="metric-val" id="text-tension">30%</span>
+                </div>
+                <div class="bar-container">
+                    <div id="fill-tension" class="bar-fill" style="width: 30%; background: var(--accent-orange);"></div>
+                </div>
+            </div>
+        </div>
+
+        <div>
+            <div style="font-size:11px; color:var(--text-muted); margin-bottom:3px; font-weight:bold;">現在地: <span id="loc-display" style="color:var(--accent-blue);">受付・本部スペース</span></div>
+            <canvas id="mapCanvas" width="280" height="65"></canvas>
+        </div>
+    </div>
+
+    <div class="chat-panel">
+        <div id="logArea" class="log-area">
+            <div class="log-item log-gm">
+                <strong>[運営本部アナウンス]</strong><br>
+                大地震発生に伴い、臨時避難所が開設されました。<br>
+                あなたは運営責任者として、この過酷な避難所を5日間（5ターン）守り抜かなければなりません。<br>
+                次々と発生する予測不能なトラブルに対し、的確な判断を下してください。<br><br>
+                まずは、あなたの**「立場（バックグラウンド）」**を下の10個から選んでください。
+            </div>
+        </div>
+    </div>
+
+    <div class="choices-area" id="choicesArea"></div>
+</div>
+
+<script>
+    let gameState = {
+        turn: 1,
+        maxTurns: 5,
+        role: null,
+        water: 100,
+        food: 100,
+        tension: 30,
+        location: "受付・本部スペース",
+        isFinished: false,
+        currentIncident: null,
+        usedIncidentIds: []
+    };
+
+    const canvas = document.getElementById("mapCanvas");
+    const ctx = canvas.getContext("2d");
+
+    function drawMap() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.strokeStyle = "#334155";
+        ctx.lineWidth = 1.5;
+        
+        ctx.strokeRect(10, 6, 75, 52);
+        ctx.fillStyle = gameState.location === "備蓄倉庫" ? "#1e293b" : "#090d16"; 
+        ctx.fillRect(10, 6, 75, 52);
+        ctx.fillStyle = gameState.location === "備蓄倉庫" ? "#38bdf8" : "#64748b"; 
+        ctx.font = "10.5px sans-serif"; ctx.fillText("備蓄倉庫", 22, 37);
+
+        ctx.strokeRect(95, 6, 90, 52);
+        ctx.fillStyle = gameState.location === "受付・本部スペース" ? "#1e293b" : "#090d16"; 
+        ctx.fillRect(95, 6, 90, 52);
+        ctx.fillStyle = gameState.location === "受付・本部スペース" ? "#38bdf8" : "#64748b"; 
+        ctx.fillText("受付・本部", 112, 37);
+
+        ctx.strokeRect(195, 6, 75, 52);
+        ctx.fillStyle = gameState.location === "居住スペース" ? "#1e293b" : "#090d16"; 
+        ctx.fillRect(195, 6, 75, 52);
+        ctx.fillStyle = gameState.location === "居住スペース" ? "#38bdf8" : "#64748b"; 
+        ctx.fillText("居住フロア", 207, 37);
+
+        ctx.fillStyle = "#fbbf24";
+        ctx.beginPath();
+        let dotX = 140;
+        if(gameState.location === "備蓄倉庫") dotX = 47;
+        if(gameState.location === "居住スペース") dotX = 232;
+        ctx.arc(dotX, 16, 3.5, 0, Math.PI * 2); 
+        ctx.fill();
+    }
+    drawMap();
+
+    function updateVisual(art, caption) {
+        if(art) document.getElementById("visualArt").innerText = art;
+        if(caption) document.getElementById("visualCaption").innerText = caption;
+    }
+
+    function updateStatus() {
+        document.getElementById("text-water").innerText = gameState.water + "%";
+        const fillWater = document.getElementById("fill-water");
+        fillWater.style.width = gameState.water + "%";
+        fillWater.style.background = gameState.water <= 30 ? "var(--accent-red)" : "var(--accent-blue)";
+
+        document.getElementById("text-food").innerText = gameState.food + "%";
+        const fillFood = document.getElementById("fill-food");
+        fillFood.style.width = gameState.food + "%";
+        fillFood.style.background = gameState.food <= 30 ? "var(--accent-red)" : "var(--accent-green)";
+
+        document.getElementById("text-tension").innerText = gameState.tension + "%";
+        const fillTension = document.getElementById("fill-tension");
+        fillTension.style.width = gameState.tension + "%";
+        fillTension.style.background = gameState.tension >= 70 ? "var(--accent-red)" : "var(--accent-orange)";
+
+        document.getElementById("loc-display").innerText = gameState.location;
+        
+        if (!gameState.isFinished) {
+            document.getElementById("role-display").innerText = `ターン: ${gameState.turn} / ${gameState.maxTurns}`;
+        }
+        drawMap();
+    }
+    updateStatus();
+
+    function addLog(sender, text, type = "gm") {
+        const logArea = document.getElementById("logArea");
+        const div = document.createElement("div");
+        div.className = `log-item log-${type}`;
+        div.innerHTML = `<strong>[${sender}]</strong><br>${text}`;
+        logArea.appendChild(div);
+        logArea.scrollTop = logArea.scrollHeight;
+    }
+
+    const initialRolePool = [
+        "学校関係者（生徒や保護者のケアを最優先する）",
+        "自治会役員（古参住民の秩序やルール厳守を貫く）",
+        "保健師・医療職（要介護者・持病持ちを救う医療優先）",
+        "一般ボランティア（若者や外部者の権利を主張する）",
+        "避難者代表（住民の不満を運営に直撃させる）",
+        "防災担当職員（行政の規定通りに冷徹・平等を貫く）",
+        "施設管理人（設備の保全とこれ以上の破損を防ぐ）",
+        "近隣商店主（余剰物資の公平配分と買い占め防止）",
+        "子育て世代代表（乳幼児の衛生とミルク確保を訴える）",
+        "無所属の調停役（すべての派閥の間に入り妥協点を探る）",
+        "避難所近くの寺の住職（精神的な支えと対話による解決を重視）",
+        "元消防団員（機動力と迅速な救助・安全確保を最優先）"
+    ];
+
+    const incidentsDatabase = [
+        {
+            id: "water_leak",
+            title: "【インシデント】給水管が破損し、大規模な水漏れが発生！",
+            desc: "余震で給水配管が破裂。貴重な生活用水が猛烈な勢いで流失し、このままでは数時間で水が枯渇します。",
+            art: "💧💥",
+            actions: [
+                { text: "元栓を直ちに閉めて業者を手配する", w: -15, f: 0, t: +5, story: "元栓を急ぎ閉めて業者を手配。水は失われましたが致命傷を免れました。", clearEnd: "【クリア：迅速な止水処理】給水インフラを守り抜いたあなたの判断は高く評価されました！", failEnd: "【ゲームオーバー：水資源枯渇】給水トラブルの対応に遅れ、生命維持の源が断たれました。" },
+                { text: "住民にバケツを持ってきてもらい、漏れた水を総出で回収する", w: -5, f: -5, t: +10, story: "住民が泥だらけになって水を回収。労力はかかりましたが水を大幅に節約できました。", clearEnd: "【クリア：泥まみれの連帯】住民総出のバケツリレーで危機を乗り切り、強い絆が生まれました！", failEnd: "【ゲームオーバー：労力疲弊と内紛】回収作業を巡る揉め事から不満が沸騰し組織が崩壊しました。" },
+                { text: "ペットボトルや鍋をかき集め、一滴残らず受け皿に溜める", w: -8, f: -3, t: +8, story: "館内の容器総動員で水を確保。慌ただしかったですが実用的な備蓄が増えました。", clearEnd: "【クリア：機転の生活水確保】あり合わせの容器を活用したサバイバル術が功を奏しました！", failEnd: "【ゲームオーバー：衛生汚染】集めた容器の不衛生さからトラブルが続発し閉鎖されました。" },
+                { text: "壊れた箇所を自前の防水テープとゴム板で強引に塞ぐ", w: -10, f: -2, t: +12, story: "応急処置が成功し水漏れが停止。技術力のある住民に賞賛が集まりました。", clearEnd: "【クリア：職人技のインフラ防衛】住民のDIY技術を活かした見事な応急処置で配管を完治させました！", failEnd: "【ゲームオーバー：決壊パニック】強引なテープ補強が水圧に耐え切れず大爆発を起こしました。" },
+                { text: "隣接するプールの底水を浄化して生活用水に回すルートを作る", w: -5, f: -10, t: +15, story: "プール水の汲み上げに苦労しましたが、当面の水不足は完全に解消されました。", clearEnd: "【クリア：プール水大作戦】機転を利かせてプールの水を生活水に転換し完走しました！", failEnd: "【ゲームオーバー：集団腹痛の悪夢】浄化不十分なプール水を配給してしまい全員が倒れました。" },
+                { text: "修理を後回しにして、まずは残りの安全な水をタンクに移し替える", w: -12, f: 0, t: +15, story: "周囲が水浸しになり苦情は出ましたが、綺麗な水自体のキープには成功しました。", clearEnd: "【クリア：水ファーストの生存哲学】水分確保を最優先し、合理的な判断で生き残りました。", failEnd: "【ゲームオーバー：床下の水没】放置された水漏れが電気系統をショートさせ暗闇に包まれました。" },
+                { text: "外部の給水車が来るまで「自然に止まるのを待つ」と様子見する", w: -35, f: 0, t: +25, story: "放置した結果、水が完全に枯渇し、館内で大パニックが勃発しました。", clearEnd: "【クリア：奇跡の逃げ切り】ギリギリのタイミングで給水車が到着。冷や汗のクリアです！", failEnd: "【ゲームオーバー：完全な人災】完全な事なかれ主義が仇となり、水が完全消滅しました。" },
+                { text: "「水の使用を一切禁止する！」と全館に厳しい断水令を出す", w: 0, f: 0, t: +30, story: "衛生面と喉の渇きから住民の怒りが爆発。暴動寸前になりました。", clearEnd: "【クリア：恐怖の独裁管理】強権的な断水令で水は死守したものの、重い代償を残しました。", failEnd: "【ゲームオーバー：武装蜂起】過度な水制限に耐えかねた住民たちが暴徒化しました。" },
+                { text: "配管のバルブを切り替え、トイレ用として汚れた水を無理やり使う", w: -10, f: -5, t: +20, story: "悪臭と使い勝手の悪さに不満が噴出しましたが、配管の破損被害は防ぎました。", clearEnd: "【クリア：悪臭を耐え抜いたサバイバル】衛生環境の悪化に目を瞑りライフラインを守り切りました。", failEnd: "【ゲームオーバー：悪臭テロ】耐えがたい悪臭が充満し、住民たちが次々と逃げ出しました。" },
+                { text: "「業者に来てもらうまで我慢しろ」と開き直って何もしない", w: -40, f: 0, t: +35, story: "対応の遅さに激昂した住民が本部になだれ込み、管理責任を厳しく追及されました。", clearEnd: "【クリア：泥沼の生還】怒号を浴び続けながらも、タイムアップの笛が鳴り響き生き残りました。", failEnd: "【ゲームオーバー：完全崩壊】責任者の怠慢により組織の信頼が失墜しました。" }
+            ]
+        },
+        {
+            id: "overflow_refugees",
+            title: "【インシデント】行き場を失った大量の避難者が殺到！",
+            desc: "近隣の避難所が土砂崩れで閉鎖され、行き場を失った200人以上の被災者が「中に入らせろ」と門を叩いています。",
+            art: "👥🚪",
+            actions: [
+                { text: "定員オーバーを覚悟して、廊下や体育館の隙間に全員を受け入れる", w: -15, f: -20, t: -5, story: "足の踏み場もなくなりましたが、命を救ったことで深い連帯感が生まれました。", clearEnd: "【クリア：慈悲の精神による大団円】全員を救済したあなたの心意気は地域全体の伝説となりました！", failEnd: "【ゲームオーバー：酸欠パニック】すし詰め状態で空気環境が悪化しパニックが発生しました。" },
+                { text: "「これ以上は無理だ」と厳格に受け入れを拒否し、別の場所を案内する", w: 0, f: 0, t: +30, story: "門の前で大揉めに揉め、「冷酷だ！」と住民の不満ゲージが急上昇しました。", clearEnd: "【クリア：要塞防衛の生き残り】キャパシティを守り抜き、規律を維持してクリアを果たしました。", failEnd: "【ゲームオーバー：門の突破劇】拒絶された群衆が門をブチ破り、無法地帯と化しました。" },
+                { text: "スペースを空けるため、既存の住民を無理やり廊下に移動させる", w: 0, f: -5, t: +25, story: "「なぜ私たちが追い出されるのか！」と激しい口論とクレームが勃発しました。", clearEnd: "【クリア：内部犠牲の強権サバイバル】古株を冷遇しつつ、どうにか管理を維持してゴールです。", failEnd: "【ゲームオーバー：クーデター】追い出された住民が蜂起し、運営陣は監禁されました。" },
+                { text: "条件付きで若者だけを受け入れ、高齢者や家族連れは他所へ促す", w: -5, f: -10, t: +20, story: "非情な選別基準だとして、周囲の自治会から猛烈な非難を浴びました。", clearEnd: "【クリア：労働力選別の一過】若年層の労働力をピンポイントで確保し、乗り切りました。", failEnd: "【ゲームオーバー：社会的弾劾】弱者を切り捨てる非人道的な方針が問題視されました。" },
+                { text: "テントを持参している人のみ、校庭のグラウンドへの野営を許可する", w: -5, f: -5, t: +10, story: "グラウンドに小さな村ができ、秩序を保ったまま受け入れに成功しました。", clearEnd: "【クリア：グラウンド村の自治成功】テント村という巧みな分散統治により校舎のパンクを防ぎました！", failEnd: "【ゲームオーバー：テント村水没】夜間に豪雨が襲い、グラウンドのテント村が水没しました。" },
+                { text: "備蓄物資の提供を条件に、近隣の別の空き施設へ分宿させる", w: -10, f: -15, t: +10, story: "物資は減りましたが、お互いにパンク状態を回避することができました。", clearEnd: "【クリア：広域連携による難局打破】物資を外交カードとして活用し、ネットワークを築きました。", failEnd: "【ゲームオーバー：共倒れの悲劇】分け与えた物資が想定以上に痛手となり共倒れになりました。" },
+                { text: "「当施設は満杯です」と完全無視を決め込み、門の鍵を閉ざす", w: 0, f: 0, t: +40, story: "締め出された人々との間で一触即発の小競り合いが発生しました。", clearEnd: "【クリア：孤高の逃げ切り】外の阿鼻叫喚に耳を貸さず、冷徹に鍵を閉め続けて生き残りました。", failEnd: "【ゲームオーバー：管理資格剥奪】冷酷な対応に外部の目が光り、管理資格を剥奪されました。" },
+                { text: "運営スタッフの私物スペースをすべて提供し、自分たちは野宿する", w: -5, f: -5, t: -10, story: "スタッフの献身的な姿に胸を打たれ、避難所全体の団結力が一気に高まりました。", clearEnd: "【クリア：聖人君主の奇跡の絆】自己犠牲の精神で全員を救い、最高の避難所を完成させました！", failEnd: "【ゲームオーバー：スタッフの過労倒れ】スタッフ全員が過労でダウンし、指揮系統が消失しました。" },
+                { text: "行政の災害対策本部に連絡し、別のバスを手配して強制送還する", w: 0, f: 0, t: +20, story: "行政のたらい回しに遭い、行き場を失った人々がその場で泣き崩れました。", clearEnd: "【クリア：事務的クリア】面倒な責任を行政に丸投げし、体裁を保ってゲームクリアです。", failEnd: "【ゲームオーバー：孤立無援】行政からも対応を拒絶され、運営陣は責任を問われました。" },
+                { text: "じゃんけんで勝った者だけを受け入れるという無茶苦茶なルールを敷く", w: 0, f: 0, t: +35, story: "不条理すぎる対応に一同が呆れ返り、運営の信用は完全に地に落ちました。", clearEnd: "【クリア：狂気の運任せ生還】倫理を捨てたギャンブル運営で人数制限をクリアしました。", failEnd: "【ゲームオーバー：暴動と本部破壊】ふざけた対応に激高した群衆が暴徒化しました。" }
+            ]
+        },
+        {
+            id: "theft_food",
+            title: "【インシデント】非常食の買い占め・不正持ち出しが発覚！",
+            desc: "備蓄倉庫の缶詰やパンが夜間に何者かに大量に盗まれ、特定のグループが隠し持っているのが見つかりました。",
+            art: "📦🏃‍♂️",
+            actions: [
+                { text: "犯人を特定し、全住民の前で謝罪とペナルティ（配給停止）を課す", w: 0, f: -10, t: +20, story: "規律は戻りましたが、犯人グループと運営の間に深いしこりが残りました。", clearEnd: "【クリア：厳罰主義による秩序の死守】不正を断罪し、規律正しく避難所をゴールに導きました。", failEnd: "【ゲームオーバー：報復テロ】重い罰を与えたことで恨みを買われ、襲撃事件が発生しました。" },
+                { text: "犯人をあえて不問にし、今後は配給時に厳重な身分証チェックを行う", w: 0, f: -8, t: +12, story: "不正は止まりましたが、配給の待機列が長蛇になり皆が疲弊しました。", clearEnd: "【クリア：身分証管理の再発防止】システム改善に徹し、平穏を保ったままクリアしました。", failEnd: "【ゲームオーバー：行列ストレス爆発】長蛇の列で住民同士が大喧嘩を始め収拾がつかなくなりました。" },
+                { text: "盗まれた分は自業自得とし、今回の配給は該当グループ以外に行う", w: 0, f: -15, t: +25, story: "グループ間の報復合戦に発展し、館内の治安が急激に悪化しました。", clearEnd: "【クリア：差別的配給サバイバル】不公平感を残しながらも強引に物資を配り続けました。", failEnd: "【ゲームオーバー：血みどろの略奪戦】不公平な配給に耐えかねたグループ間で抗争が勃発しました。" },
+                { text: "「誰にも事情がある」と完全に不問にして、全員で山分けし直す", w: 0, f: -20, t: +5, story: "物資は一気に減りましたが、犯人を追い詰めなかったことで空気は和みました。", clearEnd: "【クリア：寛容がもたらした和合】罪を憎んで人を憎まずの精神で物資を再分配しました！", failEnd: "【ゲームオーバー：モラル崩壊】犯罪を甘やかしたことで、あらゆるものが盗み放題になりました。" },
+                { text: "備蓄倉庫に屈強な男性陣による24時間警備体制を敷く", w: 0, f: -5, t: +8, story: "治安の抑止力にはなりましたが、物々しい雰囲気に不安感が増しました。", clearEnd: "【クリア：鉄壁の警備体制】隙のない警備網で二度目の盗難を完璧に阻止しクリアしました。", failEnd: "【ゲームオーバー：警備員の独裁化】倉庫を警備していた男たちが逆に権力を握りました。" },
+                { text: "倉庫に頑丈な二重ロックをかけ、責任者以外の立ち入りを完全禁止にする", w: 0, f: -2, t: +10, story: "安全は守られましたが、「信頼されていない」と住民の不満を買いました。", clearEnd: "【クリア：物理的隔離による管理】人間関係を信用せずロックに頼り、トラブルを防ぎました。", failEnd: "【ゲームオーバー：鍵の紛失】肝心の鍵を紛失し、緊急時に物資を取り出せなくなりました。" },
+                { text: "犯人グループを呼び出し、個人的に諭して残りの物資を返却させる", w: 0, f: -5, t: -5, story: "話し合いが功を奏し、反省した犯人が自ら謝罪して物資を戻してくれました。", clearEnd: "【クリア：対話による魂の救済】犯罪者を対話で更生させ、信頼関係を取り戻しました！", failEnd: "【ゲームオーバー：連続犯罪】優しい対応を弱みと勘違いされ、さらなる盗難に遭いました。" },
+                { text: "物資の管理権を住民の代表委員会に丸ごと移譲して責任を逃れる", w: 0, f: -10, t: +10, story: "責任の押し付け合いになり、委員会内部で激しい内輪もめが起きました。", clearEnd: "【クリア：自治委譲の責任逃れ】面倒な火種を住民組織に丸投げし、自分たちは難を逃れました。", failEnd: "【ゲームオーバー：委員会の内紛】代表権を巡って内部で争いが起き、物資が消滅しました。" },
+                { text: "「泥棒がいた証拠だ」と大声で触れ回り、犯人探しを住民に委ねる", w: 0, f: 0, t: +35, story: "犯人探しの魔女狩りが始まり、無実の人まで疑われる大混乱に陥りました。", clearEnd: "【クリア：猜疑心の嵐の生還】住民同士が疑い合う中を泳ぎ切り、辛うじてタイムアップです。", failEnd: "【ゲームオーバー：リンチ事件】犯人探しがエスカレートして無実の人がリンチに遭いました。" },
+                { text: "すべての備蓄を一度中央広場に放出し、早い者勝ちで配り直す", w: 0, f: -30, t: +30, story: "力自慢が物資を奪い合い、弱者が完全に置き去りにされる最悪の展開に。", clearEnd: "【クリア：弱肉強食の生還】無政府状態の奪い合いを力技で生き抜き、ゴールに滑り込みました。", failEnd: "【ゲームオーバー：完全な無政府状態】弱者が飢えに苦しむ無法地帯と化しました。" }
+            ]
+        },
+        {
+            id: "disease_outbreak",
+            title: "【インシデント】居住フロアで発熱・嘔吐の集団感染が発生！",
+            desc: "衛生環境の悪化に伴い、避難者の間で発熱や激しい嘔吐を伴う感染症の兆候が確認されました。",
+            art: "🤒🚨",
+            actions: [
+                { text: "体調不良者を空き教室に完全隔離し、保健所に直ちに救援を要請する", w: -5, f: -10, t: +5, story: "迅速な隔離により二次感染を完全阻止。医療スタッフから高く評価されました。", clearEnd: "【クリア：完璧な防疫措置】迅速な隔離と行政連携により感染拡大をシャットアウトしました！", failEnd: "【ゲームオーバー：院内感染の嵐】保健所がパンクして救援が来ず、感染が広がって全滅しました。" },
+                { text: "フロア全体を強力な消毒液で拭き上げ、全員にマスクを強制する", w: -10, f: -5, t: +12, story: "厳しい衛生管理に「窮屈だ」と文句が出ましたが、感染拡大を防ぎました。", clearEnd: "【クリア：徹底防疫のマスク社会】窮屈な規律を強きながらもウイルスをねじ伏せました。", failEnd: "【ゲームオーバー：消毒液中毒】使用した消毒液の成分が合わず呼吸困難者が続出しました。" },
+                { text: "「ただの疲れだろう」と隔離せず、このまま様子を見る", w: 0, f: 0, t: +40, story: "数日後、避難者の半数以上に感染が広がり、医療崩壊状態に陥りました。", clearEnd: "【クリア：奇跡の自然治癒】放置したウイルスがなぜか勝手に鎮静化し強運でクリアしました。", failEnd: "【ゲームオーバー：医療崩壊】感染拡大を放置した結果、死者が続出し閉鎖されました。" },
+                { text: "不安を煽らないよう、感染症の事実を隠蔽してこっそり消毒する", w: -5, f: 0, t: +30, story: "隠蔽が後に発覚し、「命を軽視している！」と住民の信頼が完全に失墜しました。", clearEnd: "【クリア：秘密裏の隠蔽生還】水面下で消毒をやり切り、最後まで秘密を隠し通して逃げ切りました。", failEnd: "【ゲームオーバー：隠蔽発覚の追放】情報の隠蔽がマスコミにリークされ追放されました。" },
+                { text: "感染者と同じ空間にいる全員を念のため敷地外へ退避させる", w: -5, f: -15, t: +25, story: "行き場を失った感染者たちが雨の中に取り残され、激しい抗議が起きました。", clearEnd: "【クリア：強引なトリアージ】冷徹な線引きでリスクを外部に追いやり生存しました。", failEnd: "【ゲームオーバー：野宿組の凍結】雨風の中に放り出された人々が低体温症で倒れました。" },
+                { text: "医療従事者のボランティアを中心に「特設救護班」を急遽組織する", w: -5, f: -5, t: -5, story: "迅速な治療体制が整い、住民の不安が安心へと変わっていきました。", clearEnd: "【クリア：即席プロチームの医療防衛】ボランティアを発掘・組織化し完璧な救護体制でした！", failEnd: "【ゲームオーバー：偽医者の発覚】ボランティアの中に詐欺師が混ざっており症状を悪化させました。" },
+                { text: "手洗いうがいの徹底を呼びかけ、特設の簡易手洗い場を増設する", w: -10, f: -5, t: +5, story: "地道な対策ですが効果が高く、衛生意識が全体的に向上しました。", clearEnd: "【クリア：基本徹底の平穏なゴール】手洗いという原点に立脚した堅実な衛生教育が実を結びました。", failEnd: "【ゲームオーバー：手洗い場の乾燥】作ったものの肝心の水が足りず形骸化しました。" },
+                { text: "「免疫力を高めるためだ」と謎の健康茶を全員に強制飲酒させる", w: 0, f: -10, t: +20, story: "怪しげな処置に住民が不信感を抱き、逆に体調を崩す人が続出しました。", clearEnd: "【クリア：怪異な民間療法の生還】科学を無視した怪しいお茶が偶然免疫を刺激し生き残りました。", failEnd: "【ゲームオーバー：怪しい毒茶事件】怪しげな茶が有毒であり避難者全員を病院送りにしました。" },
+                { text: "感染が疑われるエリアの出入りを完全にバリケード封鎖する", w: 0, f: -5, t: +20, story: "閉じ込められた家族から「面会させろ！」と怒りの声が上がりました。", clearEnd: "【クリア：壁の向こうの隔離防衛】冷酷なバリケードでウイルスと感染者を遮断してクリアです。", failEnd: "【ゲームオーバー：バリケード破壊】閉じ込められた家族がバリケードを破壊しました。" },
+                { text: "責任逃れのために「各自の自己責任で対処してください」と放送する", w: 0, f: 0, t: +45, story: "運営の放棄とみなされ、住民による自主的な本部解散運動が始まりました。", clearEnd: "【クリア：無責任放任の奇跡】責任を住民に押し付けた結果、誰もが勝手に生き延びました。", failEnd: "【ゲームオーバー：運営の強制解体】責任を放棄した運営陣に対し住民がクーデターを起こしました。" }
+            ]
+        },
+        {
+            id: "riot_fight",
+            title: "【インシデント】若者と高齢者グループの間で大喧嘩が発生！",
+            desc: "夜間の騒音やスペースの割り振りを巡り、ストレスが溜まった若者と高齢者の間で掴み合いの殴り合いに発展しました。",
+            art: "💢🗣️",
+            actions: [
+                { text: "運営責任者が自ら間に立ち、両者の言い分を丁寧に聞いて和解させる", w: 0, f: 0, t: -10, story: "膝をつき合わせて対話した結果、お互いの事情を理解し固い握手を交わしました。", clearEnd: "【クリア：伝説の名調停人】コミュニケーション能力で世代間闘争を完全調停しました！", failEnd: "【ゲームオーバー：八方美人の破綻】双方の話を聞きすぎた結果、両陣営から総スカンを食らいました。" },
+                { text: "トラブルを起こした両グループのリーダーを即座に強制退去させる", w: 0, f: 0, t: +20, story: "強硬手段で静まり返りましたが、追い出された者たちの強い恨みを買いました。", clearEnd: "【クリア：恐怖政治の逃げ切り】問答無用の一発レッドカードで館内を沈黙させました。", failEnd: "【ゲームオーバー：夜襲テロ】逆恨みした若者グループが夜間に投石を行いました。" },
+                { text: "高齢者側を全面擁護し、若者グループにだけ厳重な処罰を下す", w: 0, f: 0, t: +25, story: "若者たちの反発が爆発し、夜間の見回りや力仕事を完全にボイコットされました。", clearEnd: "【クリア：高齢者優遇の不完全クリア】若者を犠牲にして古参を固め、どうにか逃げ切りました。", failEnd: "【ゲームオーバー：若者のボイコット】若者が労働をボイコットしインフラが停止しました。" },
+                { text: "「自分たちで解決しろ」と放置して介入を一切避ける", w: 0, f: 0, t: +35, story: "小競り合いがエスカレートし、避難所の治安が完全に崩壊してしまいました。", clearEnd: "【クリア：放置主義のサバイバー】勝手に殴り合いの末に静かになり、クリアを迎えてしまいました。", failEnd: "【ゲームオーバー：バトルの支配】放置された暴力が巨大抗争に発展しました。" },
+                { text: "両者の居住スペースを間に壁を作って物理的に完全に分断する", w: -5, f: -5, t: +15, story: "顔を合わせずに済むようになりましたが、避難所に冷たい溝が生まれました。", clearEnd: "【クリア：冷戦構造の壁クリア】物理的断絶によって不毛な衝突を防ぎゴールしました。", failEnd: "【ゲームオーバー：壁の破壊】不満が爆発した若者たちが特攻して壁を破壊しました。" },
+                { text: "全員参加の「大お笑い大会・カラオケ大会」を急遽開催して気を紛らわせる", w: 0, f: -5, t: -15, story: "笑いに包まれたことで殺伐とした空気が吹き飛び、見事に一体感が生まれました。", clearEnd: "【クリア：笑いと歌声の奇跡】ユーモアで殺伐とした空気を完全に浄化し大団円を迎えました！", failEnd: "【ゲームオーバー：不謹慎への大激怒】災害時にカラオケなどふざけていると住民の怒りが爆発しました。" },
+                { text: "警察や外部の治安部隊を呼んで、暴力を振るった者を連行してもらう", w: 0, f: 0, t: +15, story: "警察の介入に物々しさは走りましたが、暴力沙汰はピタッと止まりました。", clearEnd: "【クリア：法治国家のクリア】外部権力を迅速に導入して暴力をねじ伏せました。", failEnd: "【ゲームオーバー：住民の猛反発】避難所に警察を呼んだことで住民全体の反感を買いました。" },
+                { text: "どちらの言い分も無視して「静かにしないと全員の配給を減らすぞ」と脅す", w: 0, f: 0, t: +30, story: "運営へのヘイトが共通の敵に向かい、余計に状況がこじれてしまいました。", clearEnd: "【クリア：共通の敵づくり生還】運営を敵に仕立て上げ一時的な団結を生みました。", failEnd: "【ゲームオーバー：大暴動の発生】水面下で反逆同盟が結成され運営陣が追放されました。" },
+                { text: "どちらの言い分も無視して適当にやり過ごす（様子見）", w: 0, f: 0, t: +20, story: "うやむやにしている間に、不満を残したまま時間だけが過ぎ去りました。", clearEnd: "【クリア：スルー術の逃げ切り】問題から目を背けつつ絶妙なタイミングでクリアしました。", failEnd: "【ゲームオーバー：火種の大爆発】放置された不満が地下水脈のように広がり爆発しました。" },
+                { text: "喧嘩の原因となったフロアの割り当てを完全シャッフルし得し直す", w: 0, f: 0, t: +10, story: "大移動の面倒さに不満は出ましたが、利害関係の対立は一度リセットされました。", clearEnd: "【クリア：大シャッフル作戦】席替えの要領で人間関係のマグマを強制攪拌しゴールインです！", failEnd: "【ゲームオーバー：荷物の強奪戦】シャッフルを不服とする住民たちが大乱闘を始めました。" }
+            ]
+        },
+        {
+            id: "toilet_crisis",
+            title: "【インシデント】トイレの悪臭と衛生環境が限界に達する！",
+            desc: "断水と長期間の使用により水洗トイレが完全に詰まり、悪臭がフロア全体に立ち込めて苦情が殺到しています。",
+            art: "🚽☣️",
+            actions: [
+                { text: "若者中心に清掃当番を組織し、徹底的な汲み取りと清掃を行わせる", w: -5, f: 0, t: +8, story: "「なぜ自分たちばかり」と不満は出ましたが、衛生状態は見事に改善されました。", clearEnd: "【クリア：若者の汗で磨かれた聖域】徹底的な労働力配分で水回りを蘇らせました！", failEnd: "【ゲームオーバー：若者ドロン】清掃当番に任命された若者たちが全員こっそり逃亡しました。" },
+                { text: "簡易テントを外に建て、仮設トイレを自作または行政に急ぎ要請する", w: -10, f: -5, t: -5, story: "屋外の仮設トイレが設置され、悪臭問題が一気に解消されて大喜びされました。", clearEnd: "【クリア：仮設トイレ大改革】行政の急派遣を見事に勝ち取り快適な環境でクリアです！", failEnd: "【ゲームオーバー：野糞の連鎖】行政の手配が間に合わず、住民が校舎裏で野糞を始めました。" },
+                { text: "「水が流れないなら使うな」とトイレ室の扉をすべて封鎖する", w: 0, f: 0, t: +45, story: "逃げ場を失った住民が限界を迎え、文字通りの大パニックが発生しました。", clearEnd: "【クリア：狂気のトイレ封鎖生還】全ての鍵を閉めるマネジメントで悪臭をシャットアウトしました。", failEnd: "【ゲームオーバー：壁のトイレ化】トイレを奪われた住民が校舎の壁をトイレ代わりにしました。" },
+                { text: "貴重な生活用水を大量に使って、無理やり配管を押し流す", w: -25, f: 0, t: +10, story: "水が大幅に減ってしまいましたが、つまりは何とか解消されました。", clearEnd: "【クリア：水全ベットの強引洗浄】命の水を洗浄に使う大博打に勝ち、清潔さを保ちゴールしました。", failEnd: "【ゲームオーバー：脱水地獄】トイレを流すために水を使い果たし、飲む水がなくなりました。" },
+                { text: "消臭剤やペットのトイレ砂を大量に投入して匂いを化学的に抑え込む", w: -5, f: -5, t: +5, story: "臭いが和らぎ、当座の不快感をしのぐことに成功しました。", clearEnd: "【クリア：化学の力の知性派クリア】消臭アイテムの機転で快適な空間を維持してクリアです！", failEnd: "【ゲームオーバー：毒ガス発生】大量に入れた消臭剤とアンモニアが化学反応を起こしました。" },
+                { text: "専門の業者や自衛隊の給水・清掃支援チームが来るのをひたすら待つ", w: 0, f: 0, t: +20, story: "到着までの間、悪臭と不衛生に耐えかねた住民からクレームの嵐を受けました。", clearEnd: "【クリア：耐え抜いた生還劇】ひたすら耐え忍んだ末に自衛隊の支援が到着しました。", failEnd: "【ゲームオーバー：野宿への逃亡】いつまで経っても救助隊が来ず、全員が野宿へ逃げ出しました。" },
+                { text: "トイレ掃除を買って出たボランティアに特別のご褒美（追加の物資）を出す", w: 0, f: -10, t: -5, story: "志願者が殺到し、驚くほどピカピカに磨き上げられました。", clearEnd: "【クリア：インセンティブ経済の勝利】物資を報酬にするアプローチが当たり綺麗になりました！", failEnd: "【ゲームオーバー：利権闘争の勃発】掃除利権を巡る激しい争いが勃発しました。" },
+                { text: "「各自で新聞紙に包んでゴミ箱へ捨ててください」と前代未聞の指示を出す", w: 0, f: -5, t: +40, story: "あまりの不衛生さに耐えられず、住民の多くが怒って外へ飛び出していきました。", clearEnd: "【クリア：前代未聞ルールの生還】常軌を逸したローカルルールを強行突破させタイムアップです。", failEnd: "【ゲームオーバー：生物兵器化】新聞紙包みがゴミ箱からあふれバイオハザード状態になりました。" },
+                { text: "フロアの端にバケツを置いた「即席プライベートトイレ」を乱立させる", w: -5, f: -5, t: +15, story: "プライバシー皆無の環境に羞恥心と強い不満の声が上がりました。", clearEnd: "【クリア：背水の陣トイレ生還】羞恥心を犠牲にして機能性を確保しギリギリ逃げ切りました。", failEnd: "【ゲームオーバー：転倒大惨事】酔っ払った住民が即席バケツトイレをひっくり返しました。" },
+                { text: "運営責任者である自分が自ら率先して素手でトイレ掃除を買って出る", w: 0, f: 0, t: -10, story: "その凄まじい責任感と犠牲精神に、住民全員が頭を垂れて感謝しました。", clearEnd: "【クリア：伝説の掃除リーダー】自ら汚泥にまみれるトップの姿に全員が心酔し完全クリアです！", failEnd: "【ゲームオーバー：責任者の感染倒れ】率先して掃除を行った責任者がウイルスで倒れました。" }
+            ]
+        }
+    ];
+
+    function getRandomSubarray(arr, size) {
+        let shuffled = arr.slice(0);
+        let i = arr.length;
+        let min = i - size;
+        while (i-- > min) {
+            let index = Math.floor((i + 1) * Math.random());
+            let temp = shuffled[index];
+            shuffled[index] = shuffled[i];
+            shuffled[i] = temp;
+        }
+        return shuffled.slice(min);
+    }
+
+    function renderChoices() {
+        const choicesArea = document.getElementById("choicesArea");
+        choicesArea.innerHTML = "";
+
+        if (gameState.role === null) {
+            updateVisual("🏫⚡", "避難所の開設と初期対応");
+            addLog("運営本部", "運営責任者として、以下の10個の立場候補からあなたのバックグラウンドを選択してください。", "incident");
+            
+            let currentRoles = getRandomSubarray(initialRolePool, 10);
+            currentRoles.forEach((roleText, idx) => {
+                const btn = document.createElement("button");
+                btn.className = "choice-btn";
+                btn.innerText = `${idx + 1}. ${roleText}`;
+                btn.onclick = () => handleRoleChoice(roleText);
+                choicesArea.appendChild(btn);
+            });
+        } else {
+            // まだ使っていないインシデントを優先して完全ランダム抽出
+            let availableIncidents = incidentsDatabase.filter(inc => !gameState.usedIncidentIds.includes(inc.id));
+            if (availableIncidents.length === 0) {
+                gameState.usedIncidentIds = [];
+                availableIncidents = incidentsDatabase;
+            }
+            let incident = availableIncidents[Math.floor(Math.random() * availableIncidents.length)];
+            gameState.usedIncidentIds.push(incident.id);
+            gameState.currentIncident = incident;
+
+            updateVisual(incident.art, incident.title);
+            addLog("突発インシデント発生", `${incident.title}<br>${incident.desc}`, "incident");
+
+            // 10択の選択肢を毎回シャッフルして並びを完全にランダム化
+            let shuffledActions = getRandomSubarray(incident.actions, incident.actions.length);
+            gameState.currentIncident.shuffledActions = shuffledActions;
+
+            shuffledActions.forEach((act, idx) => {
+                const btn = document.createElement("button");
+                btn.className = "choice-btn";
+                btn.innerText = `${idx + 1}. ➡ ${act.text}`;
+                btn.onclick = () => handleActionChoice(act);
+                choicesArea.appendChild(btn);
+            });
+        }
+    }
+
+    renderChoices();
+
+    function handleRoleChoice(roleText) {
+        gameState.role = roleText;
+        addLog("あなた", `「${roleText}」として運営を引き受けました。`, "player");
+        addLog("運営本部", `「${roleText.split('（')[0]}」の方針のもと、避難所運営がスタートしました。混乱を乗り切ってください！`, "gm");
+        
+        let locs = ["受付・本部スペース", "備蓄倉庫", "居住フロア"];
+        gameState.location = locs[Math.floor(Math.random() * locs.length)];
+        updateStatus();
+        renderChoices();
+    }
+
+    function handleActionChoice(act) {
+        if (gameState.isFinished) return;
+
+        addLog("あなたの判断", `[${gameState.currentIncident.title}]<br>➡ ${act.text}`, "player");
+
+        gameState.turn++;
+        gameState.water = Math.max(0, gameState.water + act.w);
+        gameState.food = Math.max(0, gameState.food + act.f);
+        gameState.tension = Math.min(100, gameState.tension + act.t);
+
+        let locs = ["受付・本部スペース", "備蓄倉庫", "居住フロア"];
+        gameState.location = locs[Math.floor(Math.random() * locs.length)];
+
+        let changeDesc = [];
+        if(act.w !== 0) changeDesc.push(`水 ${act.w > 0 ? '+' + act.w : act.w}%`);
+        if(act.f !== 0) changeDesc.push(`物資 ${act.f > 0 ? '+' + act.f : act.f}%`);
+        if(act.t !== 0) changeDesc.push(`不満度 ${act.t > 0 ? '+' + act.t : act.t}%`);
+
+        addLog("対応結果レポート", `${act.story}<br><br>📊 状況変化：${changeDesc.join(' / ')}`, "gm");
+
+        updateStatus();
+
+        if (gameState.water <= 0 || gameState.food <= 0 || gameState.tension >= 100) {
+            gameState.isFinished = true;
+            document.getElementById("role-display").innerText = "【運営崩壊】";
+            document.getElementById("choicesArea").innerHTML = '<div style="grid-column:1/-1; text-align:center; font-weight:bold; color:var(--accent-red); padding:10px;">❌ リソースの枯渇か住民の不満爆発により、避難所は機能停止しました。</div>';
+            addLog("【結末】", act.failEnd, "gm");
+        } else if (gameState.turn > gameState.maxTurns) {
+            gameState.isFinished = true;
+            document.getElementById("role-display").innerText = "【運営クリア】";
+            document.getElementById("choicesArea").innerHTML = '<div style="grid-column:1/-1; text-align:center; font-weight:bold; color:var(--accent-green); padding:10px;">🎉 5日間の過酷な避難所運営を無事に完遂しました！</div>';
+            addLog("【結末】", act.clearEnd, "gm");
+        } else {
+            renderChoices();
+        }
+    }
+</script>
+
+</body>
+</html>
